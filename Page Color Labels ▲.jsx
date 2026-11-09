@@ -1,4 +1,4 @@
-//DESCRIPTION: Page Color Labels v.1.0.5 - Apply color labels to selected pages in the Pages panel.
+//DESCRIPTION: Page Color Labels v.1.1.1 - Apply page color labels and keep document-specific label notes.
 /*
     InDesign ExtendScript 
     Copyright (c) 2026 www.TakeItEasy.dk
@@ -12,13 +12,13 @@
 #target "InDesign"
 #targetengine "PageColorLabels"
 
-// v1.2 — invoke the native Pages-panel actions, preserving its selection.
+// v1.1.1 — invoke the native Pages-panel actions, preserving its selection.
 (function () {
     var key = "pageColorLabelsV1";
     var previous = $.global[key];
     if (previous) {
         try {
-            if (previous.version === "1.2") { previous.window.show(); return; }
+            if (previous.version === "1.1.1") { previous.window.show(); previous.syncNotes(); return; }
             previous.window.close();
         } catch (ignored) {}
     }
@@ -114,12 +114,96 @@
     }
     status = body.add("statictext", undefined, "Ready — click a color to apply.");
     status.preferredSize.width = 300;
-    win.onClose = function () { $.global[key] = null; };
-    $.global[key] = {version:"1.2", window:win, buttons:buttons, fold:fold};
-    win.show();
+    var notesPanel = body.add("panel", undefined, "Label notes");
+    notesPanel.orientation = "column"; notesPanel.alignChildren = "fill";
+    notesPanel.margins = 10;
+    var notesDocument = notesPanel.add("statictext", undefined, "", {truncate:"middle"});
+    notesDocument.preferredSize.width = 280;
+    var notes = notesPanel.add("edittext", undefined, "", {multiline:true, scrolling:true, wantReturn:true});
+    notes.preferredSize = [280, 100];
+    notes.helpTip = "Explain your color labels here. Notes belong to this document. Save the document to keep them on disk.";
+    var notesStatus = notesPanel.add("statictext", undefined, "Save the document to keep notes.");
+    notesStatus.preferredSize.width = 280;
+    var notesKey = "TakeItEasy.PageColorLabels.notes.v1";
+    var noteText = "";
+    var owner = null, loadingNotes = false, noteTask = null, noteListeners = [];
+    function saveNotes() {
+        if (loadingNotes || !owner || !owner.isValid) return true;
+        try {
+            if (owner.extractLabel(notesKey) !== noteText) owner.insertLabel(notesKey, noteText);
+            notesStatus.text = "Save the document to keep notes.";
+            return true;
+        } catch (e) {
+            notesStatus.text = "Notes not stored — " + e.message;
+            notesStatus.helpTip = notesStatus.text;
+            return false;
+        }
+    }
+    function syncNotes() {
+        var active = null;
+        try { if (app.documents.length) active = app.activeDocument; } catch (_) {}
+        if (owner && owner.isValid && active && owner.id === active.id) return;
+        if (!owner && !active) { notes.enabled = false; notesDocument.text = "No document open"; return; }
+        // Always commit to the document that supplied the editor, never a newly
+        // active document. Selection changes can arrive before an idle event.
+        if (!saveNotes()) return;
+        loadingNotes = true;
+        try {
+            owner = active;
+            noteText = owner ? owner.extractLabel(notesKey) : "";
+            notes.text = noteText;
+            notes.enabled = !!owner;
+            notesDocument.text = owner ? owner.name : "No document open";
+            notesDocument.helpTip = owner ? owner.name : "";
+            notesStatus.text = owner ? "Save the document to keep notes." : "Open a document to write notes.";
+        } finally { loadingNotes = false; }
+    }
+    function editNotes() {
+        if (!loadingNotes && !fold.isCollapsed()) {
+            noteText = notes.text; saveNotes(); syncNotes();
+        }
+    }
+    notes.onChanging = notes.onChange = editNotes;
+    // ScriptUI can leave a multiline edit control blank after hiding its
+    // ancestor. Recreate that native control after expansion, from our model.
+    fold.beforeChange = function () { loadingNotes = true; };
+    fold.afterChange = function (collapsed) {
+        try {
+            if (!collapsed) {
+                var tip = notes.helpTip, message = notesStatus.text;
+                notesPanel.remove(notes); notesPanel.remove(notesStatus);
+                notes = notesPanel.add("edittext", undefined, noteText,
+                    {multiline:true, scrolling:true, wantReturn:true});
+                notes.preferredSize = [280,100]; notes.helpTip = tip;
+                notes.enabled = !!(owner && owner.isValid);
+                notes.onChanging = notes.onChange = editNotes;
+                notesStatus = notesPanel.add("statictext", undefined, message);
+                notesStatus.preferredSize.width = 280;
+                notesPanel.layout.layout(true);
+                win.layout.layout(true); win.layout.resize(); win.update();
+            }
+        } finally { loadingNotes = false; }
+        syncNotes();
+    };
+    win.onActivate = syncNotes;
+    function disposeNotes() {
+        try { if (noteTask && noteTask.isValid) noteTask.remove(); } catch (_) {}
+        for (var n=0;n<noteListeners.length;n++) try { noteListeners[n].remove(); } catch (_) {}
+    }
+    win.onClose = function () {
+        if (!saveNotes()) return false;
+        disposeNotes(); $.global[key] = null;
+    };
+    try {
+        noteTask = app.idleTasks.add({name:"PageColorLabelsNotesWatch", sleep:500});
+        noteTask.addEventListener(IdleEvent.ON_IDLE, syncNotes);
+        noteListeners.push(app.addEventListener("beforeSave", saveNotes));
+        noteListeners.push(app.addEventListener("beforeSaveAs", saveNotes));
+    } catch (_) {}
+    $.global[key] = {version:"1.1.1", window:win, buttons:buttons, fold:fold, syncNotes:syncNotes};
+    syncNotes(); win.show();
 }());
 
-// Reusable helper for fixed-size ScriptUI palettes. Add controls to .body.
 function makeCollapsiblePalette(win, compactTitle) {
     var header = win.add("group");
     header.alignment = ["left", "top"];
@@ -130,19 +214,32 @@ function makeCollapsiblePalette(win, compactTitle) {
     body.orientation = "column";
     body.alignChildren = "fill";
     body.spacing = 7;
-    var collapsed = false, saved;
+    var collapsed = false, saved, api;
+    // Keep the content container live: hiding/disabling it can strand native
+    // edit controls on macOS. Preserve individual child visibility instead.
+    function hideChildren() {
+        saved.children = [];
+        for (var i = 0; i < body.children.length; i++) {
+            saved.children.push(body.children[i].visible);
+            body.children[i].visible = false;
+        }
+    }
+    function restoreChildren() {
+        for (var i = 0; i < body.children.length; i++)
+            body.children[i].visible = saved.children[i];
+    }
     function pair(value) { return [value[0], value[1]]; }
     function setCollapsed(value) {
         value = !!value;
         if (value === collapsed) return;
+        if (api.beforeChange) api.beforeChange(value);
         var position = pair(win.location);
         if (value) {
             saved = {size:pair(win.size), min:pair(body.minimumSize),
                 max:pair(body.maximumSize), pref:pair(body.preferredSize),
                 windowMin:pair(win.minimumSize), spacing:win.spacing,
                 margins:[win.margins.left, win.margins.top, win.margins.right, win.margins.bottom]};
-            body.visible = false;
-            body.enabled = false;
+            hideChildren();
             body.minimumSize = [0,0];
             body.maximumSize = [0,0];
             body.preferredSize = [0,0];
@@ -153,8 +250,7 @@ function makeCollapsiblePalette(win, compactTitle) {
             body.maximumSize = saved.max;
             body.minimumSize = saved.min;
             body.preferredSize = saved.pref;
-            body.visible = true;
-            body.enabled = true;
+            restoreChildren();
             win.minimumSize = saved.windowMin;
             win.spacing = saved.spacing;
             win.margins = saved.margins;
@@ -171,9 +267,17 @@ function makeCollapsiblePalette(win, compactTitle) {
         }
         win.layout.resize();
         win.location = position;
+        // Refresh native hit regions after restoring the expanded bounds.
+        var bounds = [win.bounds.left, win.bounds.top, win.bounds.right, win.bounds.bottom];
+        win.bounds = [bounds[0], bounds[1], bounds[2] + 1, bounds[3]];
+        win.bounds = bounds;
+        win.layout.resize();
         win.update();
+        if (api.afterChange) api.afterChange(collapsed);
     }
     toggle.onClick = function () { setCollapsed(!collapsed); };
-    return {body:body, toggle:toggle, setCollapsed:setCollapsed,
+    api = {body:body, toggle:toggle, setCollapsed:setCollapsed,
         isCollapsed:function () { return collapsed; }};
+    return api;
 }
+
