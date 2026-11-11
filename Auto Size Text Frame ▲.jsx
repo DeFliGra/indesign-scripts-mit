@@ -1,4 +1,4 @@
-//DESCRIPTION: Auto Size v.1.4.1 - stage changes; apply reference and constraints before enabling sizing.
+//DESCRIPTION: Auto Size Text Frame v.1.4.2 - Automatically resize text frames to fit their content, with options for sizing direction, reference point and size constraints.
 /*
     InDesign ExtendScript 
     Copyright (c) 2026 www.TakeItEasy.dk
@@ -15,7 +15,7 @@
 (function () {
     var key = "autoSizePanelV1", prior = $.global[key];
     if (prior) { try { prior.window.close(); } catch (_) {} }
-    var w = new Window("palette", "Auto Size", undefined, {resizeable: false});
+    var w = new Window("palette", "Auto Size · takeiteasy.dk", undefined, {resizeable: false});
     w.orientation = "column"; w.alignChildren = "fill"; w.margins = 12;
     var fold = makeCollapsiblePalette(w, "Auto Size");
     var content = fold.body;
