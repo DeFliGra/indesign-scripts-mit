@@ -1,4 +1,4 @@
-//DESCRIPTION: Object Nudge v.1.0.8 - Move, resize and duplicate objects with precise spacing and baseline increments
+//DESCRIPTION: Object Nudge v.1.0.9 - Move, resize and duplicate objects with precise spacing and baseline increments
 /*
     InDesign ExtendScript 
     Copyright (c) 2026 www.TakeItEasy.dk
@@ -312,7 +312,7 @@ function buildPaletteUI() {
     var allowed = { up:1, down:1, left:1, right:1, all:1 };
     direction = allowed[lastDir] ? lastDir : "up";
 
-    w = new Window("palette", "Are You Nudge?");
+    w = new Window("palette", "takeiteasy.dk · Are You Nudge?");
     w.orientation = "column";
     w.alignChildren = "fill";
     w.margins = 8;
