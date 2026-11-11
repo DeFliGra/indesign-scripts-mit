@@ -1,4 +1,4 @@
-//DESCRIPTION: Page Color Labels v.1.1.1 - Apply page color labels and keep document-specific label notes.
+//DESCRIPTION: Page Color Labels v.1.1.2 - Apply page color labels and keep document-specific label notes.
 /*
     InDesign ExtendScript 
     Copyright (c) 2026 www.TakeItEasy.dk
