@@ -1,4 +1,4 @@
-//DESCRIPTION: Page Color Labels v.1.1.2 - Apply page color labels and keep document-specific label notes.
+//DESCRIPTION: Page Color Labels v.1.1.3 - Apply page color labels and keep document-specific label notes.
 /*
     InDesign ExtendScript 
     Copyright (c) 2026 www.TakeItEasy.dk
@@ -41,7 +41,7 @@
         6353:[255,128,0], 6354:[204,160,110], 6355:[0,102,0],
         6356:[0,0,255], 6357:[153,51,255], 6358:[0,0,0]
     };
-    var win = new Window("palette", "Page Color Labels", undefined, {resizeable:false});
+    var win = new Window("palette", "Page Color Labels · takeiteasy.dk", undefined, {resizeable:false});
     win.orientation = "column";
     win.alignChildren = "fill";
     win.spacing = 7;
