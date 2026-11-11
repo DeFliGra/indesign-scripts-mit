@@ -1,4 +1,4 @@
-//DESCRIPTION: Auto Size v.1.4.0 - stage changes; apply reference and constraints before enabling sizing.
+//DESCRIPTION: Auto Size v.1.4.1 - stage changes; apply reference and constraints before enabling sizing.
 /*
     InDesign ExtendScript 
     Copyright (c) 2026 www.TakeItEasy.dk
