@@ -1,4 +1,4 @@
-//DESCRIPTION: PDF Presets v.1.4.0 - ShortCut to your PDF Presets.
+//DESCRIPTION: PDF Presets v.1.4.1 - ShortCut to your PDF Presets.
 /*
     InDesign ExtendScript 
     Copyright (c) 2026 www.TakeItEasy.dk
