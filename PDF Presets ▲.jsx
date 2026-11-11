@@ -1,4 +1,4 @@
-//DESCRIPTION: PDF Presets v.1.4.1 - ShortCut to your PDF Presets.
+//DESCRIPTION: PDF Presets v.1.4.2 - ShortCut to your PDF Presets.
 /*
     InDesign ExtendScript 
     Copyright (c) 2026 www.TakeItEasy.dk
@@ -23,7 +23,7 @@
     }
     // Replace an older panel in this persistent engine.
     try { if ($.global.pdfPresetPanelV12) { $.global.pdfPresetPanelV12.close(); } } catch (ignoredOld) {}
-    var win = new Window("palette", "PDF Presets", undefined, {resizeable: true});
+    var win = new Window("palette", "PDF Presets · takeiteasy.dk", undefined, {resizeable: true});
     win.orientation = "column";
     win.alignChildren = ["fill", "top"];
     win.spacing = 4;
