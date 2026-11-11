@@ -312,7 +312,7 @@ function buildPaletteUI() {
     var allowed = { up:1, down:1, left:1, right:1, all:1 };
     direction = allowed[lastDir] ? lastDir : "up";
 
-    w = new Window("palette", "takeiteasy.dk · Are You Nudge?");
+    w = new Window("palette", "Are You Nudge?");
     w.orientation = "column";
     w.alignChildren = "fill";
     w.margins = 8;
@@ -326,7 +326,7 @@ function buildPaletteUI() {
     header.spacing = 4;
 
     var collapseBtn = header.add("button", undefined, "\u25BE");
-    var titleText   = header.add("statictext", undefined, "Object Nudge \u2013 link.tyu.dk/w/mitgrafisk");
+    var titleText   = header.add("statictext", undefined, "Object Nudge - takeiteasy.dk");
 
     // === Body containing all controls ===
     var body = w.add("group");
@@ -433,7 +433,7 @@ function buildPaletteUI() {
     }
 	
 
-	var reversedBrand = "ksifargtim/w/kd.uyt.knil";
+	var reversedBrand = "kd.ysaetiekat";
 	function reverse(str) {return str.split("").reverse().join("");}
 	var brand = reverse(reversedBrand);
 	var headerText = String(titleText.text).toLowerCase();
