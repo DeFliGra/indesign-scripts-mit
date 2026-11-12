@@ -1,5 +1,5 @@
 //DESCRIPTION:Crack the Code - a tiny code-breaking game for Adobe InDesign.
-// Version 1.1.1 | No document required. Does not change document contents.
+// Version 1.2.0 | No document required. Does not change document contents.
 
 /*
     InDesign ExtendScript 
@@ -18,7 +18,7 @@
     var KEY = "myai.crackTheCode.best.v1";
     if ($.global.myaiCodeWindow) {
         try {
-            if ($.global.myaiCodeWindow.codeGameVersion === "1.1.1") {
+            if ($.global.myaiCodeWindow.codeGameVersion === "1.2.0") {
                 $.global.myaiCodeWindow.show(); return;
             }
             $.global.myaiCodeWindow.close();
@@ -48,7 +48,7 @@
     w.alignChildren = ["fill", "top"];
     w.spacing = 10;
     w.margins = [12, 8, 12, 8];
-    w.codeGameVersion = "1.1.1";
+    w.codeGameVersion = "1.2.0";
     var collapsed = false, changingLayout = false, expandedSize;
     var header = w.add("group");
     header.alignment = ["fill", "top"];
@@ -86,6 +86,19 @@
     input.characters = 8;
     var submit = inputRow.add("button", undefined, "Unlock");
     var hint = inputRow.add("button", undefined, "Hint (-1 turn)");
+    var noteRow = body.add("group");
+    noteRow.alignment = ["fill", "top"];
+    noteRow.alignChildren = ["left", "top"];
+    noteRow.add("statictext", undefined, "Your note:");
+    var note = noteRow.add("edittext", undefined, "", {multiline:true, scrolling:true});
+    note.alignment = ["fill", "top"];
+    note.preferredSize = [280, 56];
+    note.minimumSize = [100, 56];
+    note.maximumSize.height = 56;
+    note.helpTip = "Your own notes. These do not affect guesses or points.";
+    var lastEdit = input;
+    input.onActivate = function () { lastEdit = input; };
+    note.onActivate = function () { lastEdit = note; };
     var message = body.add("statictext", undefined, "", {multiline:true});
     message.preferredSize = [390, 54];
     var footer = body.add("group");
@@ -150,6 +163,7 @@
     function reset() {
         secret = makeCode(); guesses = 0; finished = false; hinted = false;
         board.removeAll(); input.text = "";
+        note.text = ""; lastEdit = input;
         message.text = "Your first move! A hint unlocks after two guesses.\nA hint reveals one position and uses one turn.";
         refresh(); input.active = true;
     }
@@ -175,10 +189,12 @@
     close.onClick = function () { w.close(); };
     w.onClose = function () { $.global.myaiCodeWindow = null; return true; };
     function focusInput() {
-        if (!collapsed && !finished) {
-            // Reactivate the native edit control after hiding/showing the palette.
-            input.active = false;
-            input.active = true;
+        if (!collapsed) {
+            // Restore the last edit field; notes remain editable after the game.
+            var target = lastEdit;
+            if (target === input && finished) target = note;
+            target.active = false;
+            target.active = true;
         }
     }
     // Cache natural control heights once. ScriptUI's automatic column layout
@@ -226,6 +242,7 @@
         w.maximumSize = [10000, 10000];
         if (collapsed) {
             input.active = false;
+            note.active = false;
             body.visible = false;
             body.minimumSize = [0, 0];
             body.maximumSize = [0, 0];
