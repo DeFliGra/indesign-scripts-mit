@@ -1,4 +1,4 @@
-//DESCRIPTION: Script Manager v.1.7.0 — searchable launcher with persistent Favorites and grouped Collections.
+//DESCRIPTION: Script Manager v.1.7.2 — searchable launcher with persistent Favorites and grouped Collections.
 
 /* Preferences are stored in InDesign application labels, never in scripts.
    Run scripts as files to preserve their own file paths and target engines. */
@@ -765,7 +765,23 @@
     function underRoot(path,root) { return path===root || path.indexOf(root.replace(/\/$/,"")+"/")===0; }
     function transferSources(data) {
         var sources=data.roots.slice(0), parsed=collectionData(data.collections);
-        function include(path){if(!path||isDivider(path))return;for(var n=0;n<sources.length;n++)if(underRoot(path,sources[n]))return;var parent=File(path).parent.fsName;if(index(sources,parent)<0)sources.push(parent);}
+        function include(path){
+            if(!path||isDivider(path))return;
+            // A library root may already point to the new InDesign version while
+            // saved references still belong to the old Scripts Panel tree.
+            var parent=File(path).parent, ancestor=parent;
+            while(ancestor){
+                if(name(ancestor)==="Scripts Panel"){parent=ancestor;break;}
+                var next=ancestor.parent;
+                if(!next||next.fsName===ancestor.fsName)break;
+                ancestor=next;
+            }
+            var source=parent.fsName;
+            for(var n=0;n<sources.length;n++)if(underRoot(source,sources[n]))return;
+            // Drop narrower inferred roots so they cannot override this mapping.
+            for(n=sources.length-1;n>=0;n--)if(underRoot(sources[n],source))sources.splice(n,1);
+            sources.push(source);
+        }
         for(var i=0;i<data.favorites.length;i++)include(data.favorites[i]);
         for(i=0;i<data.recent.length;i++)include(data.recent[i]);
         for(i=0;i<parsed.length;i++)for(var j=0;j<parsed[i].items.length;j++)include(parsed[i].items[j].path);
@@ -803,15 +819,21 @@
         if(file.exists&&!confirm("Replace this settings file?\n"+file.fsName))return;
         writeSettings(file,captureSettings());alert("Settings exported.\n\n"+file.fsName+"\n\nCopy the script files separately to the other computer, keeping their subfolders.");
     }
-    function importSettings() {
+    function importSettings(updateLocations) {
+        var incoming;
+        if(updateLocations) incoming=captureSettings();
+        else {
         var file=File.openDialog("Import Script Manager settings", "*.smsettings");if(!file)return;
         if(file.length>10*1024*1024)throw Error("Settings file is too large.");
         file.encoding="UTF-8";if(!file.open("r"))throw Error("Cannot read settings file.");
         var raw;try{raw=file.read();}finally{file.close();}
-        var incoming=decodeSettings(raw), sources=transferSources(incoming), targets=sources.slice(0);
-        var dlg=new Window("dialog","Import settings — map script folders");dlg.orientation="column";dlg.alignChildren="fill";
+        incoming=decodeSettings(raw);
+        }
+        var sources=transferSources(incoming), targets=sources.slice(0);
+        if(!sources.length){alert("No script folders to update.");return;}
+        var dlg=new Window("dialog",updateLocations?"Update script locations":"Import settings — map script folders");dlg.orientation="column";dlg.alignChildren="fill";
         dlg.add("statictext",undefined,"Select each source folder and choose its corresponding folder on this computer.");
-        dlg.add("statictext",undefined,"Keep the same subfolder structure. Script files are not included in the export.");
+        dlg.add("statictext",undefined,updateLocations?"Favorites and Collections will follow the new folders. Keep the same subfolder structure.":"Keep the same subfolder structure. Script files are not included in the export.");
         var mappings=dlg.add("listbox",undefined,[]);mappings.preferredSize=[650,180];
         var sourceLabel=dlg.add("edittext",undefined,"",{readonly:true});sourceLabel.preferredSize.width=650;
         var targetLabel=dlg.add("edittext",undefined,"",{readonly:true});
@@ -828,13 +850,17 @@
         buttons.add("button",undefined,"Continue",{name:"ok"});if(dlg.show()!==1)return;
         var mapped=remapSettings(incoming,sources,targets), missing=missingReferences(mapped), parsed=collectionData(mapped.collections);
         var missingFolders=[];for(i=0;i<mapped.roots.length;i++)if(!Folder(mapped.roots[i]).exists)missingFolders.push(mapped.roots[i]);
-        var message="Replace the current Favorites, Collections and folder settings?\n\n"+mapped.favorites.length+" favorite entries (including dividers), "+parsed.length+" collections.\nA backup of the current setup will be saved first.";
+        if(updateLocations){
+            var changed=false;for(i=0;i<sources.length;i++)if(sources[i]!==targets[i])changed=true;
+            if(!changed){alert("No script locations were changed.");return;}
+        }
+        var message=(updateLocations?"Update script locations in Favorites, Collections and recent scripts?\n\n":"Replace the current Favorites, Collections and folder settings?\n\n")+mapped.favorites.length+" favorite entries (including dividers), "+parsed.length+" collections.\nA backup of the current setup will be saved first.";
         if(missingFolders.length)message+="\n\nMissing script folders:\n"+missingFolders.join("\n");
         if(missing.length)message+="\n\n"+missing.length+" script files are missing. Their references will be kept so you can copy the files later.\n"+missing.slice(0,5).join("\n");
         if(!confirm(message))return;
         var backupDir=Folder(Folder.userData.fsName+"/Script Manager Backups");
         if(!backupDir.exists&&!backupDir.create())throw Error("Cannot create backup folder. Import cancelled.");
-        var backup=File(backupDir.fsName+"/Before import "+new Date().getTime()+".smsettings");
+        var backup=File(backupDir.fsName+(updateLocations?"/Before location update ":"/Before import ")+new Date().getTime()+".smsettings");
         writeSettings(backup,captureSettings());
         var keys=transferKeys.concat(["collectionsData","uiState"]), old=[];
         for(i=0;i<keys.length;i++)old.push(app.extractLabel(KEY+keys[i]));
@@ -848,15 +874,17 @@
         restoringUI=true;search.text="";view.selection=0;category.selection=0;
         byName.value=sortMode==="name";byCategory.value=sortMode==="category";
         scan();renderCollection();restoringUI=false;resizeContents();persistUI();
-        alert("Settings imported.\n\nBackup of the previous setup:\n"+backup.fsName+(missing.length?"\n\nCopy the missing script files, then click Refresh.":""));
+        alert((updateLocations?"Script locations updated.":"Settings imported.")+"\n\nBackup of the previous setup:\n"+backup.fsName+(missing.length?"\n\nCopy the missing script files, then click Refresh.":""));
     }
     settingsButton.onClick=function(){
         if(busy)return;
         var d=new Window("dialog","Script Manager settings");d.orientation="column";d.alignChildren="fill";
         var ex=d.add("button",undefined,"Export settings…"),im=d.add("button",undefined,"Import settings…");
-        ex.onClick=function(){d.close(1);};im.onClick=function(){d.close(2);};
+        var relocate=d.add("button",undefined,"Update script locations…");
+        relocate.helpTip="Reconnect Favorites and Collections after moving scripts or upgrading InDesign.";
+        ex.onClick=function(){d.close(1);};im.onClick=function(){d.close(2);};relocate.onClick=function(){d.close(3);};
         var cancel=d.add("button",undefined,"Cancel",{name:"cancel"});cancel.onClick=function(){d.close(0);};
-        var choice=d.show();try{if(choice===1)exportSettings();else if(choice===2)importSettings();}catch(e){alert("Settings transfer failed:\n"+e.message);}
+        var choice=d.show();try{if(choice===1)exportSettings();else if(choice===2)importSettings(false);else if(choice===3)importSettings(true);}catch(e){alert("Settings operation failed:\n"+e.message);}
     };
     function geometry() {
         if (folding || restoringUI) return;
