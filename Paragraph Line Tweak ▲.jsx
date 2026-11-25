@@ -1,4 +1,4 @@
-//DESCRIPTION: Paragraph Line Tweak v.1.0.5 — One line more, one line less. Fine-tune tracking and fold away when done.
+//DESCRIPTION: Paragraph Line Tweak v.1.0.6 — One line more, one line less. Fine-tune tracking and fold away when done.
 
 /*
     InDesign ExtendScript 
@@ -26,7 +26,7 @@
     }
 
     var history = [];
-    var w = new Window("palette", "Adjust Paragraph Line Count · takeiteasy.dk");
+    var w = new Window("palette", "takeiteasy.dk");
     $.global.paragraphLineTweakWindow = w;
     w.orientation = "column";
     w.alignChildren = "left";
